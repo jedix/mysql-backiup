@@ -38,6 +38,13 @@ exit 0
 }
 
 
+# load config defaults
+
+if [ -f /etc/sysconfig/mysql-backup ]; then
+    . /etc/sysconfig/mysql-backup
+fi
+
+
 # set default values
 
 MYSQL_BACKUP_USER=${MYSQL_BACKUP_USER:-backupuser}
