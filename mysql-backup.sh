@@ -216,10 +216,13 @@ fi
 
 
 # archive backup
+
 MYSQL_BACKUP_TARNAME="${MYSQL_BACKUP_PATH}$(date +%Y%m%d-%H%M)-${MYSQL_BACKUP_DIR}.tgz"
 tar czf ${MYSQL_BACKUP_TARNAME} -C ${MYSQL_BACKUP_PATH} ${MYSQL_BACKUP_DIR}
-exit 1
+
+
 # upload and delete archive
+
 if [[ "${MYSQL_BACKUP_MODE}" == "s3" ]]; then
 	${MYSQL_BACKUP_S3_BINARY} put -f ${MYSQL_BACKUP_TARNAME} s3://${MYSQL_BACKUP_S3_BUCKET}/${MYSQL_BACKUP_S3_PATH}
 	rm ${MYSQL_BACKUP_TARNAME}
