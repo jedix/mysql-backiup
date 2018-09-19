@@ -138,12 +138,15 @@ ERR
 	exit 1
 fi
 
+if ! [[ -d "${MYSQL_BACKUP_PATH}" ]]; then
+  mkdir -p ${MYSQL_BACKUP_PATH}
+fi
 
 if ! [[ -d "${MYSQL_BACKUP_PATH}" && -r "${MYSQL_BACKUP_PATH}" && -w "${MYSQL_BACKUP_PATH}" && -x "${MYSQL_BACKUP_PATH}" ]]; then
-	cat <<-ERR >&2
-Backup path not found or wrong permissions: "${MYSQL_BACKUP_PATH}"
+  cat <<-ERR >&2
+Backup path not found and could not be created or wrong permissions: "${MYSQL_BACKUP_PATH}"
 ERR
-	exit 1
+  exit 1
 fi
 
 if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]] && ! [[ -d "${MYSQL_BACKUP_FULLBASEPATH}" && -r "${MYSQL_BACKUP_FULLBASEPATH}" && -x "${MYSQL_BACKUP_FULLBASEPATH}" ]]; then
