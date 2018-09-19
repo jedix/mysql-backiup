@@ -40,50 +40,50 @@ exit 0
 
 # set default values
 
-BACKUP_USER=${BACKUP_USER:-backupuser}
-BACKUP_TARGET=${BACKUP_TARGET:-local}
-BACKUP_MODE=${BACKUP_MODE:-full}
-BACKUP_PATH=${BACKUP_PATH:-/backup/}
-BACKUP_DIR=${BACKUP_DIR:-db}
-BACKUP_XTRABACKUP_BINARY=${BACKUP_XTRABACKUP_BINARY:-/usr/bin/xtrabackup}
-BACKUP_S3_BINARY=${BACKUP_S3_BINARY:-/usr/bin/s3cmd}
+MYSQL_BACKUP_USER=${MYSQL_BACKUP_USER:-backupuser}
+MYSQL_BACKUP_TARGET=${MYSQL_BACKUP_TARGET:-local}
+MYSQL_BACKUP_MODE=${MYSQL_BACKUP_MODE:-full}
+MYSQL_BACKUP_PATH=${MYSQL_BACKUP_PATH:-/backup/}
+MYSQL_BACKUP_DIR=${MYSQL_BACKUP_DIR:-db}
+MYSQL_BACKUP_XTRABACKUP_BINARY=${MYSQL_BACKUP_XTRABACKUP_BINARY:-/usr/bin/xtrabackup}
+MYSQL_BACKUP_S3_BINARY=${MYSQL_BACKUP_S3_BINARY:-/usr/bin/s3cmd}
 
 # parse command line arguments
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --user=*)
-      BACKUP_USER="${1#*=}"
+      MYSQL_BACKUP_USER="${1#*=}"
       ;;
     --password=*)
-      BACKUP_PASSWORD="${1#*=}"
+      MYSQL_BACKUP_PASSWORD="${1#*=}"
       ;;
     --target=*)
-      BACKUP_TARGET="${1#*=}"
+      MYSQL_BACKUP_TARGET="${1#*=}"
       ;;
     --mode=*)
-      BACKUP_MODE="${1#*=}"
+      MYSQL_BACKUP_MODE="${1#*=}"
       ;;
     --path=*)
-      BACKUP_PATH="${1#*=}"
+      MYSQL_BACKUP_PATH="${1#*=}"
       ;;
     --dirname=*)
-      BACKUP_DIR="${1#*=}"
+      MYSQL_BACKUP_DIR="${1#*=}"
       ;;
     --base-dir=*)
-      BACKUP_BASEDIR="${1#*=}"
+      MYSQL_BACKUP_BASEDIR="${1#*=}"
       ;;
     --pxb-binary=*)
-      BACKUP_XTRABACKUP_BINARY="${1#*=}"
+      MYSQL_BACKUP_XTRABACKUP_BINARY="${1#*=}"
       ;;
     --s3-binary=*)
-      BACKUP_S3_BINARY="${1#*=}"
+      MYSQL_BACKUP_S3_BINARY="${1#*=}"
       ;;
     --s3-bucket=*)
-      BACKUP_S3_BUCKET="${1#*=}"
+      MYSQL_BACKUP_S3_BUCKET="${1#*=}"
       ;;
     --s3-path=*)
-      BACKUP_S3_PATH="${1#*=}"
+      MYSQL_BACKUP_S3_PATH="${1#*=}"
       ;;
     -h|--help) print_usage;;
     *)
@@ -93,31 +93,31 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if [[ "${BACKUP_PATH: -1}" != "/" ]]; then
-	BACKUP_PATH="${BACKUP_PATH}/"
+if [[ "${MYSQL_BACKUP_PATH: -1}" != "/" ]]; then
+	MYSQL_BACKUP_PATH="${MYSQL_BACKUP_PATH}/"
 fi
 
-if [[ "${BACKUP_MODE}" == "full" ]]; then
-	BACKUP_DIR="${BACKUP_DIR}_full"
+if [[ "${MYSQL_BACKUP_MODE}" == "full" ]]; then
+	MYSQL_BACKUP_DIR="${MYSQL_BACKUP_DIR}_full"
 fi
 
-BACKUP_FULLPATH="${BACKUP_PATH}${BACKUP_DIR}"
+MYSQL_BACKUP_FULLPATH="${MYSQL_BACKUP_PATH}${MYSQL_BACKUP_DIR}"
 
-if [[ -z "${BACKUP_BASEDIR}" ]]; then
-	BACKUP_BASEDIR="${BACKUP_DIR}_full"
+if [[ -z "${MYSQL_BACKUP_BASEDIR}" ]]; then
+	MYSQL_BACKUP_BASEDIR="${MYSQL_BACKUP_DIR}_full"
 fi
 
-BACKUP_FULLBASEPATH="${BACKUP_PATH}${BACKUP_BASEDIR}"
+MYSQL_BACKUP_FULLBASEPATH="${MYSQL_BACKUP_PATH}${MYSQL_BACKUP_BASEDIR}"
 
-if [[ ! -z "${BACKUP_S3_PATH}" && "${BACKUP_S3_PATH: -1}" != "/" ]]; then
-	BACKUP_S3_PATH="${BACKUP_S3_PATH}/"
+if [[ ! -z "${MYSQL_BACKUP_S3_PATH}" && "${MYSQL_BACKUP_S3_PATH: -1}" != "/" ]]; then
+	MYSQL_BACKUP_S3_PATH="${MYSQL_BACKUP_S3_PATH}/"
 fi
 
 # Check options
 
-if ! [[ "${BACKUP_TARGET}" == "local" || "${BACKUP_TARGET}" == "s3" ]]; then
+if ! [[ "${MYSQL_BACKUP_TARGET}" == "local" || "${MYSQL_BACKUP_TARGET}" == "s3" ]]; then
 	cat <<-ERR >&2
-Invalid backup target: "${BACKUP_TARGET}"
+Invalid backup target: "${MYSQL_BACKUP_TARGET}"
 
 Choices:
   local   store the backup locally
@@ -127,9 +127,9 @@ ERR
 fi
 
 
-if ! [[ "${BACKUP_MODE}" == "full" || "${BACKUP_MODE}" == "incremental" ]]; then
+if ! [[ "${MYSQL_BACKUP_MODE}" == "full" || "${MYSQL_BACKUP_MODE}" == "incremental" ]]; then
 	cat <<-ERR >&2
-Invalid backup mode: "${BACKUP_MODE}"
+Invalid backup mode: "${MYSQL_BACKUP_MODE}"
 
 Choices:
   full          create a full backup
@@ -139,35 +139,35 @@ ERR
 fi
 
 
-if ! [[ -d "${BACKUP_PATH}" && -r "${BACKUP_PATH}" && -w "${BACKUP_PATH}" && -x "${BACKUP_PATH}" ]]; then
+if ! [[ -d "${MYSQL_BACKUP_PATH}" && -r "${MYSQL_BACKUP_PATH}" && -w "${MYSQL_BACKUP_PATH}" && -x "${MYSQL_BACKUP_PATH}" ]]; then
 	cat <<-ERR >&2
-Backup path not found or wrong permissions: "${BACKUP_PATH}"
+Backup path not found or wrong permissions: "${MYSQL_BACKUP_PATH}"
 ERR
 	exit 1
 fi
 
-if [[ "${BACKUP_MODE}" == "incremental" ]] && ! [[ -d "${BACKUP_FULLBASEPATH}" && -r "${BACKUP_FULLBASEPATH}" && -x "${BACKUP_FULLBASEPATH}" ]]; then
+if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]] && ! [[ -d "${MYSQL_BACKUP_FULLBASEPATH}" && -r "${MYSQL_BACKUP_FULLBASEPATH}" && -x "${MYSQL_BACKUP_FULLBASEPATH}" ]]; then
 	cat <<-ERR >&2
-Backup base directory not found or wrong permissions: "${BACKUP_FULLBASEPATH}"
+Backup base directory not found or wrong permissions: "${MYSQL_BACKUP_FULLBASEPATH}"
 ERR
 	exit 1
 fi
 
-if ! [[ -x "${BACKUP_XTRABACKUP_BINARY}" ]]; then
+if ! [[ -x "${MYSQL_BACKUP_XTRABACKUP_BINARY}" ]]; then
 	cat <<-ERR >&2
-XtraBackup binary not found or wrong permissions: "${BACKUP_XTRABACKUP_BINARY}"
+XtraBackup binary not found or wrong permissions: "${MYSQL_BACKUP_XTRABACKUP_BINARY}"
 ERR
 	exit 1
 fi
 
-if [[ "${BACKUP_TARGET}" == "s3"  && ! -x "${BACKUP_S3_BINARY}" ]]; then
+if [[ "${MYSQL_BACKUP_TARGET}" == "s3"  && ! -x "${MYSQL_BACKUP_S3_BINARY}" ]]; then
 	cat <<-ERR >&2
-s3cmd binary not found or wrong permissions: "${BACKUP_S3_BINARY}"
+s3cmd binary not found or wrong permissions: "${MYSQL_BACKUP_S3_BINARY}"
 ERR
 	exit 1
 fi
 
-if [[ "${BACKUP_TARGET}" == "s3"  && -z "${BACKUP_S3_BUCKET}" ]]; then
+if [[ "${MYSQL_BACKUP_TARGET}" == "s3"  && -z "${MYSQL_BACKUP_S3_BUCKET}" ]]; then
 	cat <<-ERR >&2
 No S3 bucket given. Use "--s3-bucket BUCKET".
 ERR
@@ -176,32 +176,32 @@ fi
 
 # delete previously created backup
 
-if [[ -d "${BACKUP_FULLPATH}" ]]; then
-	rm -rf ${BACKUP_FULLPATH}
+if [[ -d "${MYSQL_BACKUP_FULLPATH}" ]]; then
+	rm -rf ${MYSQL_BACKUP_FULLPATH}
 fi
 
 
 # create backup
 
-BACKUP_COMMAND="${BACKUP_XTRABACKUP_BINARY} --user=${BACKUP_USER}"
+MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_XTRABACKUP_BINARY} --user=${MYSQL_BACKUP_USER}"
 
-if ! [[ -z ${BACKUP_PASSWORD} ]]; then
-	BACKUP_COMMAND="${BACKUP_COMMAND} --password=${BACKUP_PASSWORD}"
+if ! [[ -z ${MYSQL_BACKUP_PASSWORD} ]]; then
+	MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --password=${MYSQL_BACKUP_PASSWORD}"
 fi
 
-BACKUP_COMMAND="${BACKUP_COMMAND} --no-timestamp --target-dir=${BACKUP_FULLPATH} --parallel=4 --use-memory=640M"
+MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --no-timestamp --target-dir=${MYSQL_BACKUP_FULLPATH} --parallel=4 --use-memory=640M"
 
-if [[ "${BACKUP_MODE}" == "incremental" ]]; then
-	BACKUP_COMMAND="${BACKUP_COMMAND} --incremental-basedir=${BACKUP_FULLBASEPATH}"
+if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]]; then
+	MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --incremental-basedir=${MYSQL_BACKUP_FULLBASEPATH}"
 fi
 
-if [[ "${BACKUP_MODE}" == "incremental" ]]; then
-	BACKUP_COMMAND="${BACKUP_COMMAND} --apply-log-only"
+if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]]; then
+	MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --apply-log-only"
 fi
 
-BACKUP_COMMAND="${BACKUP_COMMAND} --backup"
+MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --backup"
 
-${BACKUP_COMMAND}
+${MYSQL_BACKUP_COMMAND}
 
 
 # check result
@@ -209,18 +209,18 @@ ${BACKUP_COMMAND}
 if [[ "$?" != "0" ]]; then
 	cat <<-ERR >&2
 There was an error while executing the following command:
-${BACKUP_COMMAND}
+${MYSQL_BACKUP_COMMAND}
 ERR
 	exit 1
 fi
 
 
 # archive backup
-BACKUP_TARNAME="${BACKUP_PATH}$(date +%Y%m%d-%H%M)-${BACKUP_DIR}.tgz"
-tar czf ${BACKUP_TARNAME} -C ${BACKUP_PATH} ${BACKUP_DIR}
+MYSQL_BACKUP_TARNAME="${MYSQL_BACKUP_PATH}$(date +%Y%m%d-%H%M)-${MYSQL_BACKUP_DIR}.tgz"
+tar czf ${MYSQL_BACKUP_TARNAME} -C ${MYSQL_BACKUP_PATH} ${MYSQL_BACKUP_DIR}
 exit 1
 # upload and delete archive
-if [[ "${BACKUP_MODE}" == "s3" ]]; then
-	${BACKUP_S3_BINARY} put -f ${BACKUP_TARNAME} s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PATH}
-	rm ${BACKUP_TARNAME}
+if [[ "${MYSQL_BACKUP_MODE}" == "s3" ]]; then
+	${MYSQL_BACKUP_S3_BINARY} put -f ${MYSQL_BACKUP_TARNAME} s3://${MYSQL_BACKUP_S3_BUCKET}/${MYSQL_BACKUP_S3_PATH}
+	rm ${MYSQL_BACKUP_TARNAME}
 fi
