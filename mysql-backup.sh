@@ -101,48 +101,48 @@ while [ $# -gt 0 ]; do
 done
 
 if [[ "${MYSQL_BACKUP_PATH: -1}" != "/" ]]; then
-	MYSQL_BACKUP_PATH="${MYSQL_BACKUP_PATH}/"
+    MYSQL_BACKUP_PATH="${MYSQL_BACKUP_PATH}/"
 fi
 
 if [[ "${MYSQL_BACKUP_MODE}" == "full" ]]; then
-	MYSQL_BACKUP_DIR="${MYSQL_BACKUP_DIR}_full"
+    MYSQL_BACKUP_DIR="${MYSQL_BACKUP_DIR}_full"
 fi
 
 MYSQL_BACKUP_FULLPATH="${MYSQL_BACKUP_PATH}${MYSQL_BACKUP_DIR}"
 
 if [[ -z "${MYSQL_BACKUP_BASEDIR}" ]]; then
-	MYSQL_BACKUP_BASEDIR="${MYSQL_BACKUP_DIR}_full"
+    MYSQL_BACKUP_BASEDIR="${MYSQL_BACKUP_DIR}_full"
 fi
 
 MYSQL_BACKUP_FULLBASEPATH="${MYSQL_BACKUP_PATH}${MYSQL_BACKUP_BASEDIR}"
 
 if [[ ! -z "${MYSQL_BACKUP_S3_PATH}" && "${MYSQL_BACKUP_S3_PATH: -1}" != "/" ]]; then
-	MYSQL_BACKUP_S3_PATH="${MYSQL_BACKUP_S3_PATH}/"
+    MYSQL_BACKUP_S3_PATH="${MYSQL_BACKUP_S3_PATH}/"
 fi
 
 # Check options
 
 if ! [[ "${MYSQL_BACKUP_TARGET}" == "local" || "${MYSQL_BACKUP_TARGET}" == "s3" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 Invalid backup target: "${MYSQL_BACKUP_TARGET}"
 
 Choices:
   local   store the backup locally
   s3      upload the backup to Amazon S3 storage
 ERR
-	exit 1
+    exit 1
 fi
 
 
 if ! [[ "${MYSQL_BACKUP_MODE}" == "full" || "${MYSQL_BACKUP_MODE}" == "incremental" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 Invalid backup mode: "${MYSQL_BACKUP_MODE}"
 
 Choices:
   full          create a full backup
   incremental   create an incremental backup
 ERR
-	exit 1
+    exit 1
 fi
 
 if ! [[ -d "${MYSQL_BACKUP_PATH}" ]]; then
@@ -157,37 +157,37 @@ ERR
 fi
 
 if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]] && ! [[ -d "${MYSQL_BACKUP_FULLBASEPATH}" && -r "${MYSQL_BACKUP_FULLBASEPATH}" && -x "${MYSQL_BACKUP_FULLBASEPATH}" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 Backup base directory not found or wrong permissions: "${MYSQL_BACKUP_FULLBASEPATH}"
 ERR
-	exit 1
+    exit 1
 fi
 
 if ! [[ -x "${MYSQL_BACKUP_XTRABACKUP_BINARY}" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 XtraBackup binary not found or wrong permissions: "${MYSQL_BACKUP_XTRABACKUP_BINARY}"
 ERR
-	exit 1
+    exit 1
 fi
 
 if [[ "${MYSQL_BACKUP_TARGET}" == "s3"  && ! -x "${MYSQL_BACKUP_S3_BINARY}" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 s3cmd binary not found or wrong permissions: "${MYSQL_BACKUP_S3_BINARY}"
 ERR
-	exit 1
+    exit 1
 fi
 
 if [[ "${MYSQL_BACKUP_TARGET}" == "s3"  && -z "${MYSQL_BACKUP_S3_BUCKET}" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 No S3 bucket given. Use "--s3-bucket BUCKET".
 ERR
-	exit 1
+    exit 1
 fi
 
 # delete previously created backup
 
 if [[ -d "${MYSQL_BACKUP_FULLPATH}" ]]; then
-	rm -rf ${MYSQL_BACKUP_FULLPATH}
+    rm -rf ${MYSQL_BACKUP_FULLPATH}
 fi
 
 
@@ -196,17 +196,17 @@ fi
 MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_XTRABACKUP_BINARY} --user=${MYSQL_BACKUP_USER}"
 
 if ! [[ -z ${MYSQL_BACKUP_PASSWORD} ]]; then
-	MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --password=${MYSQL_BACKUP_PASSWORD}"
+    MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --password=${MYSQL_BACKUP_PASSWORD}"
 fi
 
 MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --no-timestamp --target-dir=${MYSQL_BACKUP_FULLPATH} --parallel=4 --use-memory=640M"
 
 if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]]; then
-	MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --incremental-basedir=${MYSQL_BACKUP_FULLBASEPATH}"
+    MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --incremental-basedir=${MYSQL_BACKUP_FULLBASEPATH}"
 fi
 
 if [[ "${MYSQL_BACKUP_MODE}" == "incremental" ]]; then
-	MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --apply-log-only"
+    MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --apply-log-only"
 fi
 
 MYSQL_BACKUP_COMMAND="${MYSQL_BACKUP_COMMAND} --backup"
@@ -217,11 +217,11 @@ ${MYSQL_BACKUP_COMMAND}
 # check result
 
 if [[ "$?" != "0" ]]; then
-	cat <<-ERR >&2
+    cat <<-ERR >&2
 There was an error while executing the following command:
 ${MYSQL_BACKUP_COMMAND}
 ERR
-	exit 1
+    exit 1
 fi
 
 
@@ -234,6 +234,6 @@ tar czf ${MYSQL_BACKUP_TARNAME} -C ${MYSQL_BACKUP_PATH} ${MYSQL_BACKUP_DIR}
 # upload and delete archive
 
 if [[ "${MYSQL_BACKUP_MODE}" == "s3" ]]; then
-	${MYSQL_BACKUP_S3_BINARY} put -f ${MYSQL_BACKUP_TARNAME} s3://${MYSQL_BACKUP_S3_BUCKET}/${MYSQL_BACKUP_S3_PATH}
-	rm ${MYSQL_BACKUP_TARNAME}
+    ${MYSQL_BACKUP_S3_BINARY} put -f ${MYSQL_BACKUP_TARNAME} s3://${MYSQL_BACKUP_S3_BUCKET}/${MYSQL_BACKUP_S3_PATH}
+    rm ${MYSQL_BACKUP_TARNAME}
 fi
