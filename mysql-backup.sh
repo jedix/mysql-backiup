@@ -6,6 +6,7 @@
 #             to Amazon S3 storage
 #Author:      Jens Rey
 #Email:       jrey@cocus.com
+#Version:     1.0.0
 ####################################################################
 
 # display usage
