@@ -30,8 +30,18 @@ Options:
                     full backup is stored (default: [DIRNAME]_full)
 --pxb-binary=BINARY path to XtraBackup binary (default: /usr/bin/xtrabackup)
 --s3-binary=BINARY  path to s3cmd binary (default: /usr/bin/s3cmd)
+--s3-host=HOSTNAME  HOSTNAME:PORT for S3 endpoint (default: s3.amazonaws.com)
+--s3-host-bucket=HOST_BUCKET
+                    DNS-style bucket+hostname:port template for accessing
+                    a bucket (default: %(bucket)s.s3.amazonaws.com)
 --s3-bucket=BUCKET  S3 bucket to store the backup in (default: empty)
 --s3-path=PATH      path inside S3 bucket to store the backup in (default: empty)
+--s3-secret-key=SECRET
+                    AWS secret Key
+--s3-access-key=ACCESS-KEY
+                    AWS access Key
+--s3-access-token=ACCESS-TOKEN
+                    AWS access Token
 --help              display this help
 USAGE
 exit 0
@@ -54,6 +64,9 @@ MYSQL_BACKUP_PATH=${MYSQL_BACKUP_PATH:-/backup/}
 MYSQL_BACKUP_DIR=${MYSQL_BACKUP_DIR:-db}
 MYSQL_BACKUP_XTRABACKUP_BINARY=${MYSQL_BACKUP_XTRABACKUP_BINARY:-/usr/bin/xtrabackup}
 MYSQL_BACKUP_S3_BINARY=${MYSQL_BACKUP_S3_BINARY:-/usr/bin/s3cmd}
+MYSQL_BACKUP_S3_HOST=${MYSQL_BACKUP_S3_HOST:-s3.amazonaws.com}
+MYSQL_BACKUP_S3_HOST_BUCKET=${MYSQL_BACKUP_S3_HOST_BUCKET:-%(bucket)s.s3.amazonaws.com}
+
 
 # parse command line arguments
 
@@ -91,6 +104,21 @@ while [ $# -gt 0 ]; do
       ;;
     --s3-path=*)
       MYSQL_BACKUP_S3_PATH="${1#*=}"
+      ;;
+    --s3-host=*)
+      MYSQL_BACKUP_S3_HOST="${1#*=}"
+      ;;
+    --s3-host-bucket=*)
+      MYSQL_BACKUP_S3_HOST_BUCKET="${1#*=}"
+      ;;
+    --s3-secret-key=*)
+      MYSQL_BACKUP_S3_SECRET_KEY="${1#*=}"
+      ;;
+    --s3-access-key=*)
+      MYSQL_BACKUP_S3_ACCESS_KEY="${1#*=}"
+      ;;
+    --s3-access-token=*)
+      MYSQL_BACKUP_S3_ACCESS_TOKEN="${1#*=}"
       ;;
     -h|--help) print_usage;;
     *)
@@ -233,7 +261,25 @@ tar czf ${MYSQL_BACKUP_TARNAME} -C ${MYSQL_BACKUP_PATH} ${MYSQL_BACKUP_DIR}
 
 # upload and delete archive
 
-if [[ "${MYSQL_BACKUP_MODE}" == "s3" ]]; then
-    ${MYSQL_BACKUP_S3_BINARY} put -f ${MYSQL_BACKUP_TARNAME} s3://${MYSQL_BACKUP_S3_BUCKET}/${MYSQL_BACKUP_S3_PATH}
+if [[ "${MYSQL_BACKUP_TARGET}" == "s3" ]]; then
+    MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_BINARY}"
+    if ! [[ -z ${MYSQL_BACKUP_S3_SECRET_KEY} ]]; then
+        MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_COMMAND} --secret=${MYSQL_BACKUP_S3_SECRET_KEY}"
+    fi
+    if ! [[ -z ${MYSQL_BACKUP_S3_ACCESS_KEY} ]]; then
+        MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_COMMAND} --access_key=${MYSQL_BACKUP_S3_ACCESS_KEY}"
+    fi
+    if ! [[ -z ${MYSQL_BACKUP_S3_ACCESS_TOKEN} ]]; then
+        MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_COMMAND} --access_token=${MYSQL_BACKUP_S3_ACCESS_TOKEN}"
+    fi
+    if ! [[ -z ${MYSQL_BACKUP_S3_HOST} ]]; then
+        MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_COMMAND} --host=${MYSQL_BACKUP_S3_HOST}"
+    fi
+    if ! [[ -z ${MYSQL_BACKUP_S3_HOST_BUCKET} ]]; then
+        MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_COMMAND} --host-bucket=${MYSQL_BACKUP_S3_HOST_BUCKET}"
+    fi
+
+    MYSQL_BACKUP_S3_COMMAND="${MYSQL_BACKUP_S3_COMMAND} --mime-type=application/tar+gz put ${MYSQL_BACKUP_TARNAME} s3://${MYSQL_BACKUP_S3_BUCKET}/${MYSQL_BACKUP_S3_PATH}"
+    ${MYSQL_BACKUP_S3_COMMAND}
     rm ${MYSQL_BACKUP_TARNAME}
 fi
